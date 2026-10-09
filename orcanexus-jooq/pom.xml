@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>dev.ccgcm.platform</groupId>
+        <artifactId>orcanexus</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>orcanexus-jooq</artifactId>
+
+    <name>OrcaNexus jOOQ Model</name>
+    <description>Generated jOOQ classes for the OrcaNexus Aurora schema</description>
+
+    <properties>
+        <spotless.skip>true</spotless.skip>
+
+        <!-- The jooq runtime version is transitively managed by spring-boot-jooq. -->
+        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-jooq/4.1.1/dependencies  -->
+        <!-- It is therefore set the jooq-codegen-maven plugin version accordingly to spring-boot-jooq. -->
+        <!-- https://mvnrepository.com/artifact/org.jooq/jooq-codegen-maven -->
+        <jooq.codegen.version>3.21.7</jooq.codegen.version>
+        <postgresql.version>42.7.13</postgresql.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- Required by the committed generated classes -->
+
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <!-- The jooq runtime version is transitively managed by spring-boot-jooq. See ^^ -->
+        </dependency>
+
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>generate-jooq</id>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jooq</groupId>
+                        <artifactId>jooq-codegen-maven</artifactId>
+                        <version>${jooq.codegen.version}</version>
+
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.postgresql</groupId>
+                                <artifactId>postgresql</artifactId>
+                                <version>${postgresql.version}</version>
+                            </dependency>
+                        </dependencies>
+
+                        <executions>
+                            <execution>
+                                <id>generate-jooq-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>generate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+
+                        <configuration>
+                            <jdbc>
+                                <driver>org.postgresql.Driver</driver>
+                                <url>
+                                    jdbc:postgresql://127.0.0.1:5432/orcanexus?sslmode=require
+                                </url>
+                                <user>${db.user}</user>
+                                <password>${db.password}</password>
+                            </jdbc>
+
+                            <generator>
+                                <name>org.jooq.codegen.JavaGenerator</name>
+
+                                <database>
+                                    <name>org.jooq.meta.postgres.PostgresDatabase</name>
+
+                                    <schemata>
+                                        <schema>
+                                            <inputSchema>mart</inputSchema>
+                                        </schema>
+                                    </schemata>
+
+                                    <includes>.*</includes>
+                                </database>
+
+                                <target>
+                                    <packageName>
+                                        dev.ccgcm.platform.orcanexus.jooq
+                                    </packageName>
+                                    <directory>
+                                        ${project.basedir}/src/main/java
+                                    </directory>
+                                </target>
+
+                                <generate>
+                                    <records>true</records>
+                                    <immutablePojos>true</immutablePojos>
+                                    <fluentSetters>true</fluentSetters>
+                                </generate>
+                            </generator>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
