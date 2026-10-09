@@ -1,0 +1,68 @@
+name: Pull Request Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+# Actions Used (please keep this documented here as added)
+#  https://github.com/marketplace/actions/checkout
+#  https://github.com/marketplace/actions/trufflehog-oss
+#  https://github.com/marketplace/actions/setup-python
+#  https://github.com/actions/setup-java
+#  https://github.com/hashicorp/setup-terraform
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@v3.98.1
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+
+      - name: Verify Spotless google-java-format
+        run: mvn --batch-mode --no-transfer-progress spotless:check
+
+# FIXME still early days, turning off for now ~victor
+#      - name: Verify Spotbugs rules
+#        run: mvn --batch-mode --no-transfer-progress compile spotbugs:check
+
+# FIXME still early days, turning off for now ~victor
+#      - name: Verify Checkstyle rules
+#        run: mvn --batch-mode --no-transfer-progress checkstyle:check
+
+      - name: Verify Enforcer rules
+        run: mvn --batch-mode --no-transfer-progress enforcer:enforce
+
+# FIXME still early days, turning off for now ~victor
+#      - name: Verify Maven project
+#        run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files

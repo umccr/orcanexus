@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: orcanexus
+
+  profiles:
+    default: local
+
+  jooq:
+    sql-dialect: POSTGRES
+
+  datasource:
+    driver-class-name: software.amazon.jdbc.Driver
+    url: "jdbc:aws-wrapper:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}?wrapperPlugins=iam&iamHost=${DB_HOST}&iamPort=${DB_PORT:5432}&iamRegion=${AWS_REGION:ap-southeast-2}&iamUsername=${DB_USER}&sslmode=require"
+    username: ${DB_USER}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 1
+      connection-timeout: 10000
+      validation-timeout: 5000
+      max-lifetime: 600000
+      idle-timeout: 300000
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    org.jooq: INFO
+
+# ---
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: OrcaNexus Data API
+    version: ${project.version:unknown}
+
+springdoc:
+  show-actuator: true
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# ---
+
+orcanexus:
+  system:
+    name: ${info.app.name}
+    description: ${info.app.description}
+    environment: ${SPRING_PROFILES_ACTIVE:unknown}
+  pagination:
+    default-page: 0
+    default-size: 10
+    max-size: 1000
