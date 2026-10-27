@@ -61,6 +61,13 @@ orcanexus:
     name: ${info.app.name}
     description: ${info.app.description}
     environment: ${SPRING_PROFILES_ACTIVE:unknown}
+  datasource:
+    # Rewrites generated jOOQ schema names to their physical database names at query-render time,
+    # so the generated model can be reused when the database schema is named differently.
+    # Add/adjust entries as the physical schema naming changes; no code changes required.
+    schema-mappings:
+      - input: ${DB_SCHEMA_INPUT:mart}
+        output: ${DB_SCHEMA_OUTPUT:mnt}
   pagination:
     default-page: 0
     default-size: 10

@@ -88,7 +88,12 @@
 
                                     <schemata>
                                         <schema>
-                                            <inputSchema>mart</inputSchema>
+                                            <!-- Read from the physical database schema         -->
+                                            <!-- (inputSchema) but emit the generated model      -->
+                                            <!-- under the desired schema name (outputSchema),   -->
+                                            <!-- so the physical and generated names can differ. -->
+                                            <inputSchema>mnt</inputSchema>
+                                            <outputSchema>mart</outputSchema>
                                         </schema>
                                     </schemata>
 
