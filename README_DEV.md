@@ -151,3 +151,14 @@ Infra:
 - Terraform
 - Git and GitHub
 - Database Administration — DBA (query pref, tuning, backup, snapshot, proxy, tunnel, etc.)
+
+## AI Engineering
+
+Notes on our AI engineering documentation:
+
+* It follows the Kiro documentation structure (https://kiro.dev/docs/how-kiro-works/),
+  since `kiro-cli` is the AI agent we use.
+* Focus on grounding the AI agent's context with what matters most to the project
+  specification and development scope.
+
+         Less is more: avoid text bloat.
