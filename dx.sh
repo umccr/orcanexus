@@ -115,3 +115,7 @@ nexus_clean () {
 nexus_jooq () {
   mvn -pl orcanexus-jooq generate-sources -Pgenerate-jooq -Ddb.user="$DB_USER" -Ddb.password="$DB_PASS"
 }
+
+nexus_port () {
+  lsof -nP -iTCP:8080 -sTCP:LISTEN
+}
