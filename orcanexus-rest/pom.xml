@@ -43,6 +43,13 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Spring Data web support: Pageable argument resolution and PagedModel -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-data-commons</artifactId>
+        </dependency>
+
         <!-- OpenAPI and Swagger UI -->
 
         <dependency>

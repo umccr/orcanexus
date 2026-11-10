@@ -102,6 +102,26 @@ See the report in `target/spotbugs*`
 mvn enforcer:enforce
 ```
 
+## Adding pagination to a new resource
+
+Follow the LIMS slice. Pagination parsing, validation and the response envelope are shared; only
+the resource-specific parts are new.
+
+* `orcanexus-domain`: a use case and a query port that take `PageRequest` and return
+  `PageResult<T>`. `PageRequest` already carries the requested `SortOrder`s. Keep it plain Java.
+* `orcanexus-aurora`: a jOOQ repository implementing the port. Apply `limit`/`offset` and a count
+  query, and build the ordering from the requested sort orders. Only real column names of the
+  table may be sortable and the first column ascending is the tiebreaker. Unknown fields must
+  throw `InvalidSortFieldException`, which the REST layer already maps to HTTP 400.
+* `orcanexus-rest`: a controller method taking `@ParameterObject Pageable`, mapped with
+  `PageRequestMapper` and returned through `PagedModels.from(result, mapper)`. The
+  `@ParameterObject` annotation is required for Swagger UI to show `page`, `size` and `sort` as
+  separate parameters. Validation of `page` and `size` is applied automatically to any
+  `Pageable` argument.
+* Limits and defaults come from `spring.data.web.pageable.*`; do not add custom settings.
+* Offset pagination was chosen on purpose. Revisit keyset (cursor) pagination for a resource only
+  if its row counts make deep pages or the count query slow.
+
 ## Makefile
 
 There are a couple of [Makefile](Makefile) targets that is prepared for some dev routine.

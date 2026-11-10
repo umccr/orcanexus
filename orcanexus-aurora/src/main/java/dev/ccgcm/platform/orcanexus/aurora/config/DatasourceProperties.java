@@ -1,6 +1,5 @@
 package dev.ccgcm.platform.orcanexus.aurora.config;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -17,14 +16,14 @@ public class DatasourceProperties {
    * rewrites the generated ({@code input}) schema name to the physical ({@code output}) schema name
    * at query-render time, so the model can be reused without regeneration.
    */
-  private List<SchemaMapping> schemaMappings = new ArrayList<>();
+  private List<SchemaMapping> schemaMappings = List.of();
 
   public List<SchemaMapping> getSchemaMappings() {
-    return schemaMappings;
+    return List.copyOf(schemaMappings);
   }
 
   public void setSchemaMappings(List<SchemaMapping> schemaMappings) {
-    this.schemaMappings = schemaMappings;
+    this.schemaMappings = List.copyOf(schemaMappings);
   }
 
   /** A single schema name mapping from the generated model name to the physical database name. */

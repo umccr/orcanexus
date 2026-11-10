@@ -1,12 +1,16 @@
 package dev.ccgcm.platform.orcanexus.rest.controller;
 
+import dev.ccgcm.platform.orcanexus.domain.model.LimsRecord;
 import dev.ccgcm.platform.orcanexus.domain.service.FindLimsRecordsUseCase;
-import dev.ccgcm.platform.orcanexus.rest.config.PaginationRequestFactory;
-import dev.ccgcm.platform.orcanexus.rest.response.LimsResponse;
+import dev.ccgcm.platform.orcanexus.rest.config.PageRequestMapper;
+import dev.ccgcm.platform.orcanexus.rest.response.PagedModels;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.Map;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
@@ -17,20 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class LimsController {
 
   private final FindLimsRecordsUseCase findLimsRecordsUseCase;
-  private final PaginationRequestFactory paginationRequestFactory;
+  private final PageRequestMapper pageRequestMapper;
 
   public LimsController(
-      FindLimsRecordsUseCase findLimsRecordsUseCase,
-      PaginationRequestFactory paginationRequestFactory) {
+      FindLimsRecordsUseCase findLimsRecordsUseCase, PageRequestMapper pageRequestMapper) {
     this.findLimsRecordsUseCase = findLimsRecordsUseCase;
-    this.paginationRequestFactory = paginationRequestFactory;
+    this.pageRequestMapper = pageRequestMapper;
   }
 
   @GetMapping
-  public LimsResponse getLims(
-      @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
-    var pageRequest = paginationRequestFactory.create(page, size);
+  public PagedModel<Map<String, Object>> getLims(@ParameterObject Pageable pageable) {
+    var result = findLimsRecordsUseCase.getLims(pageRequestMapper.toDomain(pageable));
 
-    return LimsResponse.from(findLimsRecordsUseCase.getLims(pageRequest));
+    return PagedModels.from(result, LimsRecord::columns);
   }
 }

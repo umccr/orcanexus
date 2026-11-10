@@ -8,6 +8,11 @@ spring:
   jooq:
     sql-dialect: POSTGRES
 
+  mvc:
+    # Render MVC errors (including ResponseStatusException) as RFC 9457 problem details
+    problemdetails:
+      enabled: true
+
   datasource:
     driver-class-name: software.amazon.jdbc.Driver
     url: "jdbc:aws-wrapper:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}?wrapperPlugins=iam&iamHost=${DB_HOST}&iamPort=${DB_PORT:5432}&iamRegion=${AWS_REGION:ap-southeast-2}&iamUsername=${DB_USER}&sslmode=require"
@@ -67,8 +72,9 @@ orcanexus:
     # Add/adjust entries as the physical schema naming changes; no code changes required.
     schema-mappings:
       - input: ${DB_SCHEMA_INPUT:mart}
-        output: ${DB_SCHEMA_OUTPUT:mnt}
-  pagination:
-    default-page: 0
-    default-size: 10
-    max-size: 1000
+        output: ${DB_SCHEMA_OUTPUT:mart}
+
+# Spring Data web support (Pageable resolution and request validation limits)
+spring.data.web.pageable:
+  default-page-size: ${PAGE_DEFAULT_SIZE:10}
+  max-page-size: ${PAGE_MAX_SIZE:1000}
