@@ -7,12 +7,10 @@ OrcaNexus is the **Warehouse Data API** for UMCCR: a backend service that expose
 curated data-warehouse content (genomics LIMS metadata, sequencing artifacts, and
 workflow records) over a versioned REST API.
 
-- Consumers query read-oriented endpoints under `/api/v1/...` (e.g. `/api/v1/lims`,
-  `/api/v1/system/info`).
-- OpenAPI / Swagger UI is served at `/swagger-ui/index.html` and `/v3/api-docs`.
-- Data originates from an Aurora PostgreSQL data warehouse; the warehouse "mart"
-  schema surfaces entities such as `lims`, `fastq`, `bam`, `vcf`, `workflow`,
-  `workflow_output`, and `workflow_cost_report`.
+- Consumers query read-oriented endpoints under `/api/v1/...`. OpenAPI / Swagger UI
+  (`/swagger-ui/index.html`, `/v3/api-docs`) is the source of truth for endpoints.
+- Data originates from an Aurora PostgreSQL data warehouse ("mart" schema). Overview:
+  `docs/architecture/overview.md`. Shared API behaviour: `docs/api/conventions.md`.
 
 Project docs: https://github.com/umccr/orcahouse-doc
 Issues: https://github.com/umccr/orcahouse-project/issues
