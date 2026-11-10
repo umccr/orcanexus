@@ -54,6 +54,7 @@ management:
 orcanexus:
   system:
     environment: local
-  pagination:
-    default-size: 10
-    max-size: 10000
+
+spring.data.web.pageable:
+  default-page-size: ${PAGE_DEFAULT_SIZE:10}
+  max-page-size: ${PAGE_MAX_SIZE:10000}

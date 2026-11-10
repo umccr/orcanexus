@@ -4,8 +4,9 @@ inclusion: always
 # Spring Configuration Conventions
 
 - Externalize settings with `@ConfigurationProperties(prefix = "orcanexus.<area>")`
-  on a `@Component` POJO (see `SystemProperties`, `PaginationProperties`,
-  `DatasourceProperties`). No explicit `@EnableConfigurationProperties` — these are
+  on a `@Component` POJO (see `SystemProperties`, `DatasourceProperties`). Where Spring Boot
+  already provides a setting (e.g. `spring.data.web.pageable.*` for pagination), configure
+  that instead of adding a custom property. No explicit `@EnableConfigurationProperties` — these are
   component-scanned from the `@SpringBootApplication` base package.
 - Prefer configurable, env-overridable values (`${ENV_VAR:default}` in YAML) over
   hardcoded constants. Defaults may encode the current situation but must be
