@@ -14,8 +14,8 @@ inclusion: always
 - The generator reads the **physical** DB schema (`inputSchema`) and emits the model
   under a possibly different **generated** name (`outputSchema`). Keep these two
   concepts distinct in both config and comments.
-- Database-first, no ORM: the schema is modelled in the database and drives the Java
-  model. Do not reshape the generated model to fit Java preferences.
+- Database-first, no ORM (`docs/adr/0004-database-first-jooq-no-orm.md`). Do not reshape
+  the generated model to fit Java preferences.
 
 ## Schema name mapping (physical vs. generated)
 
