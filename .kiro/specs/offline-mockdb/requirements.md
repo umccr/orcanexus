@@ -4,8 +4,8 @@
 
 Development today is remote-only ([ADR 0005](../../../docs/adr/0005-remote-only-dev-with-iam-auth.md)):
 the app reaches the dev Aurora PostgreSQL through an SSM tunnel with IAM database auth. That
-path stays the preferred one, but it is slow and the tunnel drops. This feature adds an
-optional offline path: a local PostgreSQL in Docker Compose, filled with purely synthetic mock
+path is slow and the tunnel drops. This feature adds an
+offline path next to it: a local PostgreSQL in Docker Compose, filled with purely synthetic mock
 data, selected through a new Spring profile `mockdb`.
 
 The schema is derived from the committed jOOQ model (schema `mart`, seven flat relations:
@@ -207,14 +207,12 @@ and Maven commands.
 
 #### Acceptance Criteria
 
-1. WHEN `nexus_local_up` is invoked, THE Dx_Script SHALL start the Compose_Stack and wait until the healthcheck reports healthy, for a maximum of 120 seconds.
-2. IF the healthcheck does not report healthy within 120 seconds of `nexus_local_up` starting the Compose_Stack, THEN THE Dx_Script SHALL print a message indicating the Local_Database did not become healthy, leave the Compose_Stack running, and return a non-zero status.
-3. WHEN `nexus_local_down` is invoked, THE Dx_Script SHALL stop the Compose_Stack, keep the named volume with its data intact, and return a zero status.
-4. WHEN `nexus_mock_up` is invoked, THE Dx_Script SHALL run the Up_Command, passing through the optional `--scale N` and `--seed N` arguments in either order, with `--scale` an integer from 1 to 100000 and `--seed` an integer of 0 or more.
-5. IF `nexus_mock_up` receives an unknown argument, a `--scale` or `--seed` without a value, or a value outside those ranges, THEN THE Dx_Script SHALL print a message indicating the invalid argument, not run the Up_Command, and return a non-zero status.
-6. IF `nexus_mock_up` is invoked while the Local_Database is not healthy, THEN THE Dx_Script SHALL print a message instructing the user to start `nexus_local_up`, not run the Up_Command, and return a non-zero status.
-7. THE Dx_Script SHALL keep existing functions and their behaviour unchanged.
-8. THE Dx_Script SHALL keep each new function a thin wrapper, consistent with the script's KISS rule.
+1. WHEN `nexus_docker_up` is invoked, THE Dx_Script SHALL start the Compose_Stack, wait until the healthcheck reports healthy for a maximum of 120 seconds, and then run the Up_Command once with the Mockdb_Tool's default scale and seed, taking no arguments.
+2. IF the healthcheck does not report healthy within 120 seconds of `nexus_docker_up` starting the Compose_Stack, THEN THE Dx_Script SHALL print a message indicating the Local_Database did not become healthy, leave the Compose_Stack running, not run the Up_Command, and return a non-zero status.
+3. WHEN `nexus_docker_down` is invoked, THE Dx_Script SHALL stop the Compose_Stack, keep the named volume with its data intact, and return the status of the stop command.
+4. THE Dx_Script SHALL NOT parse or validate scale or seed, because the Mockdb_Tool does so (Requirement 4).
+5. THE Dx_Script SHALL keep existing functions and their behaviour unchanged.
+6. THE Dx_Script SHALL keep each new function a thin wrapper, consistent with the script's KISS rule.
 
 ### Requirement 11: Runtime verification of the Application
 
@@ -239,7 +237,7 @@ keeps one source of truth per fact.
 
 #### Acceptance Criteria
 
-1. THE Documentation SHALL include exactly one new ADR in `docs/adr/`, numbered as the next unused ADR number, that supersedes ADR 0005, states that the remote dev database remains the preferred path, records the local mock database as an optional offline path, and briefly records the profile naming decision (`mockdb` and `tunnel`, retiring `local`).
+1. THE Documentation SHALL include exactly one new ADR in `docs/adr/`, numbered as the next unused ADR number, that supersedes ADR 0005, states that the remote dev database reached through the tunnel remains available alongside the local mock database, records the local mock database as an offline path, and does not state which path is preferred, and briefly records the profile naming decision (`mockdb` and `tunnel`, retiring `local`).
 2. THE ADR README index SHALL list the new ADR with its status, and SHALL show ADR 0005 with the status `Superseded by` followed by the new ADR number.
 3. THE Documentation SHALL leave the body of ADR 0005 byte-for-byte unchanged except for its status line.
 4. THE new ADR SHALL follow the template in `docs/adr/0000-template.md` and SHALL name at least one considered alternative (for example a static SQL dump, or Testcontainers) together with the reason it was not chosen.
@@ -303,13 +301,12 @@ adds no hidden cost.
 - **Environment label.** The Tunnel_Profile sets `orcanexus.system.environment` to `tunnel`; the Mockdb_Profile sets `mockdb`.
 - **Column sets.** Key-like columns are `library_id` (lims, fastq, bam, vcf, workflow) and `portal_run_id` (bam, fastq, vcf, workflow, workflow_output, workflow_cost_report), plus `cohort_id`, `bucket` and `key` in the artifact tables. The full column list is derived from the Jooq_Model at design time.
 - **Tooling on the dev machine.** Docker 29 with Compose v5 and Java 21 are installed.
-- **Tunnel name durability.** `tunnel` names the current mechanism. If AWS VPN replaces the SSM tunnel (ADR 0005 mentions it as a possibility), the profile name may need revisiting.
 
 ## Remaining Open Points
 
 - **PostgreSQL image tag.** That `postgres:18.6` exists on Docker Hub is confirmed in task 1.1.
 - **Paging tiebreaker on real data.** The existing `LimsRepository` appends the first column (`sequencing_run_id`, non-unique) as the sort tiebreaker, so paging with a non-unique sort key may be unstable on real data too. This is outside this spec and should be raised separately. Requirement 11 criterion 6 therefore sorts by the unique library identifier.
-- **DDL execution is unverified.** The jOOQ-generated DDL has not been executed against a real PostgreSQL. This is the single remaining verification and belongs in the first implementation task, with a documented fallback (for example post-processing the statements) if PostgreSQL rejects any statement. Every relation is marked `TableOptions.table()` although the real warehouse objects are views.
+- **DDL execution: verified in task 1.** PostgreSQL 18.6 accepted the jOOQ-generated DDL twice in one transaction; no fallback was needed. Every relation is marked `TableOptions.table()` although the real warehouse objects are views.
 - **Reference list for the rename.** A search during this requirements pass found references to the old name `local`, outside `.local/` and accepted ADR bodies, in `application.yaml`, `application-local.yaml`, `.env.example`, `.kiro/steering/tech.md`, and the delivered spec `.kiro/specs/spring-pagination/` (design.md and tasks.md, excluded from the zero-match search). Design must repeat the search, including tests, CI workflows and tracked IDE configurations. The `.env` file must not be read without the developer's permission; a developer whose `.env` sets `SPRING_PROFILES_ACTIVE=local` must update it by hand.
 - **Files to re-read before editing.** `application-tunnel.yaml` (formerly `application-local.yaml`), `dx.sh`, `application.yaml`, `application-dev.yaml`, `application-prod.yaml` and the module POMs.
 - **Out of scope.** Any change to the existing `LimsRepository` (including its sort tiebreaker), real warehouse data, Testcontainers-based tests, CI use of the Compose_Stack, write endpoints, and any change to the remote development path other than the profile rename in Requirement 14.

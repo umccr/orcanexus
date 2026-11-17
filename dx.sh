@@ -119,3 +119,19 @@ nexus_jooq () {
 nexus_port () {
   lsof -nP -iTCP:8080 -sTCP:LISTEN
 }
+
+# Offline mock database helpers. Run from the repository root (paths are relative).
+# The tool reads MOCKDB_* env vars (not DB_*); these never source .env.
+
+nexus_docker_up () {
+  docker compose -f orcanexus-mockdb/compose.yaml up -d --wait --wait-timeout 120 \
+    || { echo "Local database did not become healthy within 120s (container left running)" >&2; return 1; }
+  # No options: the tool defaults apply (scale 100, seed 42). For another scale or seed run the jar:
+  #   java -jar orcanexus-mockdb/target/orcanexus-mockdb-1.0-SNAPSHOT.jar up --scale N --seed N
+  mvn -q -DskipTests -pl orcanexus-mockdb -am package \
+    && java -jar orcanexus-mockdb/target/orcanexus-mockdb-1.0-SNAPSHOT.jar up
+}
+
+nexus_docker_down () {
+  docker compose -f orcanexus-mockdb/compose.yaml down # no -v: the data volume stays
+}

@@ -32,7 +32,15 @@ mvn -DskipTests package          # build runnable jar
 mvn verify                       # tests + spotless + checkstyle + spotbugs
 ```
 
-Default Spring profile is `local`; `SERVER_PORT` overrides the HTTP port.
+Default Spring profile is `tunnel`; `SERVER_PORT` overrides the HTTP port.
+
+## Offline path
+
+- Profiles: `tunnel` (default, remote dev DB via SSM tunnel) and `mockdb` (local Docker Postgres).
+- Needs Docker/Compose only for this path. Image `postgres:18.6`; Datafaker 2.7.0 is pinned in
+  `orcanexus-mockdb`.
+- Start: `source dx.sh; nexus_docker_up`.
+- Recipe: `docs/dev/offline-mockdb.md`. Decision: `docs/adr/0010-local-mock-database.md`.
 
 ## Gotchas
 

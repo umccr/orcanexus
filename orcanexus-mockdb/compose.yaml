@@ -1,0 +1,25 @@
+name: orcanexus-mockdb
+
+services:
+  postgres:
+    image: postgres:18.6
+    container_name: orcanexus-mockdb
+    ports:
+      - "127.0.0.1:${MOCKDB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${MOCKDB_NAME:-orcanexus}
+      POSTGRES_USER: ${MOCKDB_USER:-orcanexus}
+      POSTGRES_PASSWORD: ${MOCKDB_PASSWORD:-mockdb-local-only} # pragma: allowlist secret
+    volumes:
+      # PostgreSQL 18 uses a versioned PGDATA under /var/lib/postgresql; mounting
+      # /var/lib/postgresql/data would silently create an anonymous volume.
+      - orcanexus-mockdb-data:/var/lib/postgresql
+    healthcheck:
+      # TCP check: the init-time temporary server listens on the Unix socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  orcanexus-mockdb-data:

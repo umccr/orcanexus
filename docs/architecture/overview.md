@@ -7,8 +7,8 @@ record.
 
 ## Hexagonal modules
 
-Five Maven modules. Everything points inward; the domain depends on nothing
-([ADR 0002](../adr/0002-hexagonal-architecture.md)).
+Six Maven modules: five form the hexagon and one is a dev-only tool. Everything points inward;
+the domain depends on nothing ([ADR 0002](../adr/0002-hexagonal-architecture.md)).
 
 | Module                  | Role                                                    | May depend on                          |
 |-------------------------|---------------------------------------------------------|----------------------------------------|
@@ -16,7 +16,11 @@ Five Maven modules. Everything points inward; the domain depends on nothing
 | `orcanexus-rest`        | Inbound adapter: REST controllers, DTOs                 | `orcanexus-domain`                     |
 | `orcanexus-aurora`      | Outbound adapter: jOOQ repositories, DB config          | `orcanexus-domain`, `orcanexus-jooq`   |
 | `orcanexus-jooq`        | Generated jOOQ model                                    | nothing internal                       |
-| `orcanexus-application` | Composition root: `main`, Spring wiring                 | all of the above                       |
+| `orcanexus-application` | Composition root: `main`, Spring wiring                 | the four modules above                 |
+| `orcanexus-mockdb`      | Dev-only CLI: schema and synthetic data for the offline path | `orcanexus-jooq`                  |
+
+No runtime module depends on `orcanexus-mockdb`. It is a dev-only path
+([offline mock database](../dev/offline-mockdb.md)).
 
 ```mermaid
 graph TD
@@ -25,7 +29,9 @@ graph TD
     aurora[orcanexus-aurora]
     domain[orcanexus-domain]
     jooq[orcanexus-jooq]
+    mockdb[orcanexus-mockdb<br/>dev-only CLI]
 
+    mockdb --> jooq
     application --> rest
     application --> domain
     application --> aurora
@@ -66,10 +72,14 @@ Domain services are plain Java, wired as beans in `DomainConfiguration`.
 - **Database-first with jOOQ, no ORM.** jOOQ introspects the database schema and generates the
   Java model. Modeling happens in the database and drives the Java application
   ([ADR 0004](../adr/0004-database-first-jooq-no-orm.md)).
-- **Remote-dev.** There is no local database. Developers reach the dev database through an SSM
+- **Remote dev database (`tunnel`).** Developers can reach the dev database through an SSM
   tunnel to a small EC2 instance in a private subnet, using IAM database auth with 15-minute
   tokens and a read-only user. No static passwords. AWS VPN may follow at about 10 developers
   ([ADR 0005](../adr/0005-remote-only-dev-with-iam-auth.md)).
+- **Local mock database (`mockdb`).** A local PostgreSQL in Docker Compose with synthetic data, selected
+  by the `mockdb` profile, for work without AWS access. The default profile is `tunnel`. See
+  [offline mock database](../dev/offline-mockdb.md) and
+  [ADR 0010](../adr/0010-local-mock-database.md).
 - **Pagination and errors** follow shared conventions: see [api/conventions.md](../api/conventions.md).
 
 ## Decisions

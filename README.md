@@ -8,15 +8,16 @@ For data warehouse issue tracking, please submit an issue to https://github.com/
 
 ## Quickstart
 
-Full setup (toolchain, AWS session, tunnel, lint): [docs/dev/setup.md](docs/dev/setup.md).
+Local mock database (needs Docker, no AWS access): [docs/dev/offline-mockdb.md](docs/dev/offline-mockdb.md).
+Remote dev database over the SSM tunnel (needs AWS): [docs/dev/remote-tunnel.md](docs/dev/remote-tunnel.md). Toolchain and lint: [docs/dev/setup.md](docs/dev/setup.md).
 
 ```
 sdk install java 21.0.12-amzn
 sdk install maven
-aws sso login          # any AWS CLI auth works
-source dx.sh           # then nexus_key, nexus_tunnel, nexus_env, nexus_cred
+source dx.sh
+nexus_docker_up        # local Postgres in Docker, seeded with mock data
 mvn clean package -DskipTests
-java -jar orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar
+SPRING_PROFILES_ACTIVE=mockdb java -jar orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar
 ```
 
 ## API

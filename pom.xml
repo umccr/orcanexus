@@ -41,6 +41,7 @@
         <module>orcanexus-aurora</module>
         <module>orcanexus-jooq</module>
         <module>orcanexus-domain</module>
+        <module>orcanexus-mockdb</module>
     </modules>
 
     <dependencies>

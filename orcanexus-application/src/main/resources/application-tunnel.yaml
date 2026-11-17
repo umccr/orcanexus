@@ -1,0 +1,51 @@
+spring:
+  config:
+    activate:
+      on-profile: tunnel
+
+  devtools:
+    restart:
+      enabled: true
+      exclude:
+        - static/**
+        - public/**
+        - templates/**
+
+  datasource:
+    driver-class-name: software.amazon.jdbc.Driver
+    url: "jdbc:aws-wrapper:postgresql://127.0.0.1:${DB_PORT}/${DB_NAME}?wrapperPlugins=iam&iamHost=${DB_HOST}&iamPort=5432&iamRegion=${AWS_REGION:ap-southeast-2}&iamUsername=${DB_USER}&sslmode=require"
+    username: ${DB_USER}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0
+      connection-timeout: 10000
+      validation-timeout: 5000
+      max-lifetime: 600000
+      idle-timeout: 300000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - info
+          - health
+          - metrics
+          - loggers
+          - env
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+# ---
+
+orcanexus:
+  system:
+    environment: tunnel
+
+spring.data.web.pageable:
+  default-page-size: ${PAGE_DEFAULT_SIZE:10}
+  max-page-size: ${PAGE_MAX_SIZE:10000}

@@ -42,3 +42,10 @@ regeneration needed**.
   with DB tunnel + AWS session active) and exercise a data endpoint such as
   `/api/v1/lims`. A `200` on `/api/v1/system/info` confirms startup only, not
   schema-rewrite correctness.
+
+## Offline verification (mockdb)
+
+- The `mockdb` profile with `nexus_docker_up` verifies DB-facing changes without the tunnel.
+- Local DDL comes from the committed jOOQ model, so regenerating the model needs no tool change.
+- Under `mockdb` the schema mapping is an identity mapping (no rewrite).
+- Recipe: `docs/dev/offline-mockdb.md`. Decision: `docs/adr/0010-local-mock-database.md`.

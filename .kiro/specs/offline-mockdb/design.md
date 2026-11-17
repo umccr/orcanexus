@@ -2,9 +2,9 @@
 
 ## Overview
 
-Add an optional offline development path to OrcaNexus: a local PostgreSQL in Docker Compose,
+Add an offline development path to OrcaNexus: a local PostgreSQL in Docker Compose,
 filled with deterministic synthetic data, selected through the Spring profile `mockdb`. The
-remote dev path stays the preferred one. The default profile is renamed from `local` to
+remote dev path stays available. The default profile is renamed from `local` to
 `tunnel` so that each profile is named after how it reaches its data.
 
 Three deliverables:
@@ -42,10 +42,12 @@ and any change to the remote path other than the profile rename.
 | Model schema name | The generated schema is `mart`; the physical dev schema differs (see `jooq.md`). On the local database the physical and generated names are the same, so no rewrite is needed. The tool never hardcodes the name; it reads it from the model (`Mart.MART.getName()`). | `orcanexus-jooq/pom.xml`, `jooq.md` |
 | Test stack | JUnit 5 and AssertJ via Spring Boot starters, Mockito in `rest`. No jqwik or other PBT library. | module POMs, existing tests |
 | Static analysis | Checkstyle has only three rules (`AvoidStarImport`, `UnusedImports`, `FinalClass`). SpotBugs runs at effort Max, threshold Default; the exclude filter only skips generated jOOQ code. Spotless runs google-java-format everywhere except `orcanexus-jooq`. | `config/`, root `pom.xml` |
-| PostgreSQL 18 image data path | From 18, the official image uses a versioned `PGDATA` (for example `/var/lib/postgresql/18/docker`), so the volume is mounted at `/var/lib/postgresql`. Mounting `/var/lib/postgresql/data` silently creates an anonymous volume and loses data on recreate. Reported consistently by several sources; verified by the restart checks in task 1.1. | Docker Hub `postgres` image notes and community reports (to confirm in task 1.1) |
-| Compose healthcheck gotcha | The official image starts a temporary server on the Unix socket only during first-time init. `pg_isready` over the socket can report ready too early; checking over TCP (`-h 127.0.0.1`) avoids it. | PostgreSQL image entrypoint behaviour (to confirm in task 1) |
+| PostgreSQL 18 image data path | From 18, the official image uses a versioned `PGDATA` (for example `/var/lib/postgresql/18/docker`), so the volume is mounted at `/var/lib/postgresql`. Mounting `/var/lib/postgresql/data` silently creates an anonymous volume and loses data on recreate. Reported consistently by several sources; verified by the restart checks in task 1.1. | Docker Hub `postgres` image notes and community reports. Verified in task 1.1: stop/start and down/up (no `-v`) keep the rows, one named volume exists and no anonymous volume was created. |
+| Compose healthcheck gotcha | The official image starts a temporary server on the Unix socket only during first-time init. `pg_isready` over the socket can report ready too early; checking over TCP (`-h 127.0.0.1`) avoids it. | PostgreSQL image entrypoint behaviour. The TCP check was used in task 1.1 and the container became healthy. |
 | Spring property precedence | Profile documents override base `application.yaml` per key. Placeholders are resolved lazily for the winning value only. See [Profile Resolution](#profile-resolution-and-the-unresolved-placeholders). | Spring Boot reference, reasoned; confirmed at runtime in verification step V3 |
-| Compose project directory | With `-f orcanexus-mockdb/compose.yaml`, Compose reads `.env` from that file's directory, not the repository root. The repository `.env` is therefore not loaded by the Compose_Stack. | Compose behaviour (to confirm in task 1) |
+| Compose project directory | With `-f orcanexus-mockdb/compose.yaml`, Compose reads `.env` from that file's directory, not the repository root. The repository `.env` is therefore not loaded by the Compose_Stack. | Compose behaviour. Task 1.1: every variable resolved to its default, which is consistent with this. It is not provable without reading the repository `.env`, which was not read. |
+| Compose volume name | Compose prefixes the project name, so the actual volume is `orcanexus-mockdb_orcanexus-mockdb-data`, not the bare `orcanexus-mockdb-data`. | Task 1.1 (`docker volume ls`) |
+| Task 1 outcomes | `postgres:18.6` exists and pulls (PostgreSQL 18.6, Debian 18.6-1.pgdg13+2). The Boot-repackaged jar runs with Datafaker 2.7.0, postgresql 42.7.13, jOOQ 3.21.7 and snakeyaml 2.6, with no version conflict. `spring.sql.init` with `select 1` works on Boot 4.1.1. No fallback was needed. | Tasks 1.1 to 1.4 |
 
 ## Architecture
 
@@ -87,8 +89,8 @@ graph LR
     cli[mockdb CLI jar]
     compose[Compose_Stack<br/>postgres on 127.0.0.1:5433]
     app[Application<br/>profile mockdb]
-    dev -->|nexus_local_up| compose
-    dev -->|nexus_mock_up| cli
+    dev -->|nexus_docker_up| compose
+    dev -->|nexus_docker_up| cli
     cli -->|JDBC, localhost only| compose
     dev -->|SPRING_PROFILES_ACTIVE=mockdb| app
     app -->|JDBC static password| compose
@@ -160,7 +162,7 @@ flowchart LR
 | Option | Why not chosen |
 |--------|----------------|
 | `exec-maven-plugin` `exec:java` | In a reactor build with `-am`, the goal also runs in `orcanexus-jooq` and fails; without `-am` it needs `orcanexus-jooq` installed in `~/.m2`. Both are awkward for a `dx.sh` wrapper. |
-| `maven-shade-plugin` | Works, but needs transformers to merge `META-INF/services` and signature handling. Kept as the fallback if Datafaker resource loading fails inside the Boot nested-jar loader (see Risks). |
+| `maven-shade-plugin` | Works, but needs transformers to merge `META-INF/services` and signature handling. Was the fallback if Datafaker resource loading failed inside the Boot nested-jar loader; task 1.3 showed it works, so shade is not needed. |
 | Plain jar plus classpath file | Two steps and a classpath file to keep in sync. |
 
 Repackaging replaces the module's own main artifact. That is fine because nothing depends on
@@ -234,9 +236,12 @@ Queries ddl = dsl.ddl(Mart.MART, cfg);   // dsl dialect must be SQLDialect.POSTG
   interpreter (`dsl.meta(String...)`), and compare name, type, length, precision, scale and
   nullability per column with the model. DB-backed: the same comparison against
   `information_schema` through `dsl.meta()` on a live connection.
-- **Open point resolution (DDL execution unverified).** Task 1 renders the DDL, pipes it through
-  `psql` against a running Compose_Stack, and then runs `schema` twice. Fallback ladder if
-  PostgreSQL rejects a statement:
+- **Open point resolution (DDL execution, verified in task 1.1).** The jOOQ DDL with the flags
+  above was accepted by PostgreSQL 18.6, executed twice in one transaction. Output: `create schema
+  if not exists "mart"` plus seven `create table if not exists "mart"."<t>"`, with no `ALTER`,
+  index or sequence. Types: text, bigint, date, timestamp(6), `numeric(12,4)`
+  (`workflow.workflow_duration`) and `numeric(18,2)` (three `workflow_cost_report` columns); all
+  columns nullable. No fallback was used. The ladder below is kept as history only:
   1. Confirm the `DSLContext` uses `SQLDialect.POSTGRES` (a wrong dialect is the most likely cause).
   2. Replace `ddl()` for tables with
      `dsl.createTableIfNotExists(table).columns(table.fields())` per table, keeping the same
@@ -505,10 +510,12 @@ rejected, with no AWS fallback. Whether the Mart_Relations exist or hold rows is
 startup (Requirement 11.8). A missing relation surfaces at request time: the first query against
 it raises a database error and `/api/v1/lims` answers with an error status (HTTP 5xx), never HTTP
 200 with an empty `content` array. A relation that exists but is empty is not distinguished from a
-seeded one (Requirement 11.8), so it returns 200 with empty content. Task 1 confirms both
-behaviours (steps V7 and V8). Fallback, used only if `spring.sql.init` does not behave as
-expected on Boot 4.1.1: a small `@Profile("mockdb")` check bean in `orcanexus-aurora`'s config
-package that opens a connection and runs `select 1`.
+seeded one (Requirement 11.8), so it returns 200 with empty content. Task 1.4 confirmed the
+startup behaviour on Boot 4.1.1: with the database down the application exits with code 1 and a
+`CannotGetJdbcConnectionException` (root cause "Connection to 127.0.0.1:5433 refused"); with it up,
+startup takes about 2 s. The request-time behaviour for a missing relation is still checked by
+step V8. The `@Profile("mockdb")` check bean in `orcanexus-aurora` (the former fallback) was not
+needed and is not used.
 
 #### Profile resolution and the unresolved placeholders
 
@@ -530,8 +537,10 @@ The base `application.yaml` still contains `${DB_HOST}`, `${DB_USER}` and `${DB_
 `DB_*` variable (`url`, `username`; the driver class has none) is overridden by one that reads
 `MOCKDB_*` only. `DB_PASS` is not read by any base key (the tunnel profile authenticates through the
 IAM wrapper). So no value of `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` can change the
-connection target. This is reasoned from Spring Boot behaviour; verification step V3 confirms it at
-runtime by starting with a deliberately wrong `DB_HOST` set.
+connection target. Task 1.4 confirmed at runtime that wrong or unset `DB_*` variables have no effect, that the
+unresolved `${DB_HOST}` in the base file is harmless, and that `spring.profiles.default` is
+harmless when `SPRING_PROFILES_ACTIVE=mockdb`. Verification step V3 repeats the check on the
+finished application.
 
 If someone selects the retired profile `local`, it is an unknown profile: only the base file
 applies, the `${DB_HOST}` placeholder is then the winning value, and startup fails with an
@@ -552,36 +561,28 @@ recipe warns about this (Requirement 14.9, 14.12).
 
 ### 6. Dx helpers
 
-Three functions are appended to `dx.sh`. They follow the file's rule (KISS, one wrapped command
-each), use cwd-relative paths like `nexus_jooq` and `nexus_port` (run from the repository root),
-and leave all existing functions unchanged.
+Two functions are appended to `dx.sh`. They follow the file's rule (KISS, thin wrappers), use
+cwd-relative paths like `nexus_jooq` and `nexus_port` (run from the repository root), and leave
+all existing functions unchanged.
 
 ```bash
-nexus_local_up () {
+nexus_docker_up () {
   docker compose -f orcanexus-mockdb/compose.yaml up -d --wait --wait-timeout 120 \
-    || { echo "mockdb did not become healthy within 120s (container left running)" >&2; return 1; }
+    || { echo "Local database did not become healthy within 120s (container left running)" >&2; return 1; }
+  # No options: tool defaults (scale 100, seed 42). Other values: run the jar directly.
+  mvn -q -DskipTests -pl orcanexus-mockdb -am package \
+    && java -jar orcanexus-mockdb/target/orcanexus-mockdb-1.0-SNAPSHOT.jar up
 }
 
-nexus_local_down () {
+nexus_docker_down () {
   docker compose -f orcanexus-mockdb/compose.yaml down   # no -v: the volume stays
-}
-
-nexus_mock_up () {
-  # accepts --scale N (1..100000) and --seed N (>= 0), in any order
-  ... validate args; fail with a message and return 1 on anything else ...
-  [[ "$(docker inspect -f '{{.State.Health.Status}}' orcanexus-mockdb 2>/dev/null)" == healthy ]] \
-    || { echo "mockdb is not healthy; run nexus_local_up first" >&2; return 1; }
-  mvn -q -pl orcanexus-mockdb -am package -DskipTests \
-    && java -jar orcanexus-mockdb/target/orcanexus-mockdb-1.0-SNAPSHOT.jar up "${args[@]}"
 }
 ```
 
-- Argument validation in the shell is a pre-check for a friendlier message and so that no build
-  or connection happens on bad input. The CLI validates again, so the rules live in the tool.
-  Scale is `^[0-9]+$` and 1 to 100000; seed is `^[0-9]+$` and at most 2147483647 (the tool parses
-  an `int`).
-- `up --wait` returns non-zero on timeout and, to be confirmed in task 1, leaves the container
-  running (Requirement 10.2). If a port clash makes `up` fail earlier, the compose error is
+- The shell takes no arguments and does no scale or seed validation. The tool owns that
+  (Requirement 4). Another scale or seed means running the jar directly with `up --scale N --seed N`.
+- `up --wait` returns non-zero on timeout and, as confirmed in task 1.1, leaves the container
+  running (Requirement 10.2). A busy host port gives a port-binding error; the compose error is
   printed above our message.
 - The package step runs on every call so a regenerated jOOQ model is picked up. Incremental
   Maven makes it quick.
@@ -635,12 +636,12 @@ as a profile list.
 
 | Item | Plan |
 |------|------|
-| ADR | `docs/adr/0010-optional-local-mock-database.md` (next unused number; the index ends at 0009). Template from `0000-template.md`. Supersedes 0005: states the remote dev database stays preferred, the local mock database is an optional offline path, and the profile rename (`mockdb`, `tunnel`; `local` retired because it was ambiguous between a remote database behind a local tunnel and a local database). Alternatives considered: static SQL dump (drifts from the model, no determinism knobs), Testcontainers (out of scope, needs Docker in `verify`), hand-written DDL (the drift this design avoids). |
-| ADR 0005 | Only the status line changes: `- Status: Accepted` to `- Status: Superseded by [0010](0010-optional-local-mock-database.md)`. Body byte-for-byte unchanged. |
+| ADR | `docs/adr/0010-local-mock-database.md` (next unused number; the index ends at 0009). Template from `0000-template.md`. Supersedes 0005: states the remote dev database stays preferred, the local mock database is an optional offline path, and the profile rename (`mockdb`, `tunnel`; `local` retired because it was ambiguous between a remote database behind a local tunnel and a local database). Alternatives considered: static SQL dump (drifts from the model, no determinism knobs), Testcontainers (out of scope, needs Docker in `verify`), hand-written DDL (the drift this design avoids). |
+| ADR 0005 | Only the status line changes: `- Status: Accepted` to `- Status: Superseded by [0010](0010-local-mock-database.md)`. Body byte-for-byte unchanged. |
 | `docs/adr/README.md` | Add the 0010 row (`Accepted`); change the 0005 row status to `Superseded by 0010`. |
 | Recipe | `docs/dev/offline-mockdb.md` with sections: Prerequisites, Start the Compose_Stack, Run the tool, Start the application, Environment variables, Update `.env` and IDE run configurations (profile `local` is retired), Troubleshooting (at least three symptom, cause, resolution rows: port 5433 in use; "connection refused" when the stack is down; "tables are not empty" on `seed`; startup fails with unresolved `${DB_HOST}` after selecting `local`; `psql` auth failure after a changed `MOCKDB_PASSWORD` on an existing volume). Links to the ADR and does not copy endpoint paths. |
 | `docs/README.md` | Add one index line linking the recipe. |
-| `docs/architecture/overview.md` | Module table: add `orcanexus-mockdb` (role: dev-only seed CLI; may depend on `orcanexus-jooq`). Diagram: add a node with an edge to `jooq`. State that no runtime module depends on it. Change "Five" to "Six" modules. Amend the "Remote-dev" concept to say the remote path is preferred and a local mock database is an optional offline path. |
+| `docs/architecture/overview.md` | Module table: add `orcanexus-mockdb` (role: dev-only seed CLI; may depend on `orcanexus-jooq`). Diagram: add a node with an edge to `jooq`. State that no runtime module depends on it. Change "Five" to "Six" modules. Amend the "Remote-dev" concept to name both paths (remote dev database through the tunnel, local mock database) without stating a preference. |
 | Steering (each addition at most 10 lines, linking to `docs/`) | `structure.md`: the module and the rule that nothing depends on it. `tech.md`: the mockdb commands and the default profile `tunnel`. `jooq.md`: verification notes for the mockdb profile (start with `MOCKDB_*`, exercise a data endpoint, a 200 on system info only proves startup). |
 | `README.md` | Currently 39 lines. Add one line to the Quickstart that links `docs/dev/offline-mockdb.md`, giving 40 lines. No blank line may be added (tight; Requirement 12.10). |
 
@@ -847,7 +848,7 @@ this spec and raised separately. (Runtime verification step V6.)
 | Bad `--scale` or `--seed` value, or missing value, or duplicate option | Message naming option and value; nothing connected | 2 | 4.5, 6.8 |
 | `--scale` or `--seed` on `schema` or `reset` | Message naming the option; nothing connected | 2 | 4.7 |
 | Host not `localhost`, `127.0.0.1`, `::1` | Message naming the host; zero connections | 1 | 9.6 |
-| Database unreachable within 10 s | Message with host, port and "start the Compose_Stack (nexus_local_up)" | 1 | 4.10, 5.7 |
+| Database unreachable within 10 s | Message with host, port and "start the Compose_Stack (nexus_docker_up)" | 1 | 4.10, 5.7 |
 | Wrong credentials | Message naming user and database; no password echoed | 1 | 4.10 |
 | DDL rejected | Failing statement and database error on stderr; transaction rolled back | 1 | 5.6 |
 | Relationship_Spec names a missing table or column | Both names printed before any insert | 1 | 7.7 |
@@ -940,7 +941,7 @@ are not reported as skipped).
 | Check | Command | Expected |
 |-------|---------|----------|
 | No dependency on mockdb | `mvn -pl orcanexus-application dependency:tree \| grep -E 'mockdb\|datafaker'` | no output (3.3) |
-| App jar free of tool classes | `unzip -l orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar \| grep -E 'orcanexus-mockdb\|mockdb/\|net/datafaker'` | no output (3.4) |
+| App jar free of tool classes | `unzip -l orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar \| grep -E 'orcanexus-mockdb\|net/datafaker\|MockdbMain'` | no output (3.4). The pattern is narrowed on purpose: a broader `mockdb/` also matches the legitimate resource `BOOT-INF/classes/mockdb/startup-check.sql` |
 | Module deps limited | `mvn -pl orcanexus-mockdb dependency:tree` | only `orcanexus-jooq`, driver, Datafaker (+ test) (3.2) |
 | Domain unchanged | `mvn -pl orcanexus-domain dependency:tree` | no compile deps (3.6) |
 | Exact versions | review of the module POM | no ranges, `LATEST` or `RELEASE` (3.5) |
@@ -951,7 +952,7 @@ Run from the repository root with Docker and Java 21. Pick a free `SERVER_PORT`.
 
 | Step | Action | Expected |
 |------|--------|----------|
-| V1 | `source dx.sh; nexus_local_up; nexus_mock_up --scale 100` | stack healthy; summary lists row counts per table (1100 total) |
+| V1 | `source dx.sh; nexus_docker_up` | stack healthy; summary lists row counts per table (1100 total) |
 | V2 | `SPRING_PROFILES_ACTIVE=mockdb SERVER_PORT=<free> java -jar orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar` with no AWS session and no tunnel | context starts within 60 s; system info returns 200 (11.1, 2.3) |
 | V3 | Same start with a deliberately wrong `DB_HOST` and `DB_USER` exported | still starts and connects to the local database (2.12, placeholder reasoning) |
 | V4 | Request the first page of the LIMS resource, then `page=0&size=5` | 200 with 1 to 10 records; then 5 records, `totalElements` 100, `totalPages` 20 (11.2, 11.3) |
@@ -959,7 +960,7 @@ Run from the repository root with Docker and Java 21. Pick a free `SERVER_PORT`.
 | V6 | Pages 0 and 1, size 5, sorted by the unique `library_id` (not by a non-unique field such as the sequencing run) | 10 distinct records, none repeated or skipped (11.6) |
 | V7 | Stop the stack, start the application | startup fails with a database connection error, non-zero exit; the check does not name a schema or table (2.11, 11.7) |
 | V8 | Start the stack with an empty database (no `schema`), start the application, request the LIMS resource; then run `up` and request again | startup succeeds; first request returns an HTTP 5xx, never 200 with empty `content` (11.8); after `up` it returns 200 with records |
-| V9 | `nexus_local_down; nexus_local_up` | row counts unchanged (1.7) |
+| V9 | `nexus_docker_down; nexus_docker_up` | row counts unchanged (1.7) |
 | V10 | `SPRING_PROFILES_ACTIVE=local` | treated as unknown profile; no tunnel or mockdb settings (14.5) |
 
 Then the repository gates: `mvn -DskipTests compile`, `mvn spotless:apply`, `mvn verify` (also
@@ -971,7 +972,7 @@ on a machine without Docker), the zero-match search above, and a check of the fi
 
 | Open point | Resolution |
 |------------|------------|
-| DDL execution unverified | Task 1 starts the Compose_Stack, renders the DDL, executes it with `psql` in a transaction, then runs the real `schema` command twice and `reset`. Outcomes recorded in the task notes. Fallback ladder in the DDL section (dialect check, per-table `createTableIfNotExists`, post-processing). |
+| DDL execution | Verified in task 1.1: PostgreSQL 18.6 accepted the generated DDL twice in one transaction. No fallback used. The real `schema` and `reset` commands are still exercised by the later database-backed tests. |
 | Reference list for the rename | Re-run during design; result in the rename inventory. Four files change; excluded files are the delivered `spring-pagination` spec, this spec, and `.local/`. No test, workflow or tracked IDE file references the profile. |
 | Files to re-read before editing | Done for design: `dx.sh`, `application*.yaml`, module POMs. `application-tunnel.yaml` is the renamed file and is re-read when the task edits it. |
 
@@ -979,11 +980,11 @@ on a machine without Docker), the zero-match search above, and a check of the fi
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Datafaker resources fail to load inside the Boot nested-jar loader | CLI does not start | Task 1 runs the jar once; fallback is `maven-shade-plugin` with the service-file transformer. |
-| Datafaker pulls a `snakeyaml` or `commons-lang3` that conflicts with Boot's managed version | Build or run error | Boot's BOM pins compatible versions (snakeyaml 2.6); `dependency:tree` reviewed in task 1. |
-| Datafaker output not reproducible across runs | Property 1 fails | Datafaker takes our seeded `Random`; no date providers; the determinism test runs over 50 combinations. If a provider is found non-deterministic, it is replaced by vocabulary draws. |
-| `spring.sql.init` behaves differently on Boot 4.1.1 | Unreachable database does not fail startup | Task 1 verifies V7 and V8; fallback is a `@Profile("mockdb")` check bean in `orcanexus-aurora` configuration. |
-| `up --wait` stops the container on timeout | Requirement 10.2 not met | Verified in task 1; fallback is `up -d` followed by a polling loop on `docker inspect`. |
+| Datafaker resources fail to load inside the Boot nested-jar loader | CLI does not start | Retired: task 1.3 ran the repackaged jar successfully; shade fallback not needed. |
+| Datafaker pulls a `snakeyaml` or `commons-lang3` that conflicts with Boot's managed version | Build or run error | Retired: task 1.3 found no version conflicts (snakeyaml 2.6). |
+| Datafaker output not reproducible across runs | Property 1 fails | Seeded Faker was deterministic across runs in task 1.3. Datafaker takes our seeded `Random`; no date providers; the determinism test runs over 50 combinations. If a provider is found non-deterministic, it is replaced by vocabulary draws. |
+| `spring.sql.init` behaves differently on Boot 4.1.1 | Unreachable database does not fail startup | Retired: task 1.4 confirmed the failure with exit code 1. The `@Profile("mockdb")` bean fallback is not used. |
+| `up --wait` stops the container on timeout | Requirement 10.2 not met | Retired: task 1.1 confirmed the container keeps running; the polling-loop fallback is not used. |
 | Seed time at `L = 100000` is long | Slow dev loop | Default scale is 100; the estimate is measured in task 6 and documented; batch size and `reWriteBatchedInserts` are tunable. |
 | Local default password leaks into scanners | detect-secrets noise | `# pragma: allowlist secret` on each occurrence; loopback-only port binding. |
 | Default password duplicated in four places | Drift | Manual check in task 1; documented as D8. |
@@ -992,7 +993,7 @@ on a machine without Docker), the zero-match search above, and a check of the fi
 
 | # | Decision | Alternatives considered | Rationale |
 |---|----------|-------------------------|-----------|
-| D1 | CLI as a Boot-repackaged executable jar | `exec:java`; shade; classpath file | One command for `dx.sh`; no reactor quirks; shade kept as fallback. |
+| D1 | CLI as a Boot-repackaged executable jar | `exec:java`; shade; classpath file | One command for `dx.sh`; no reactor quirks. Confirmed in task 1.3; shade fallback not needed. |
 | D2 | DDL from `dsl.ddl()` with `SCHEMA` and `TABLE` flags and if-not-exists | Hand-written SQL; DDL pre-check | Follows the model; idempotent without catalog queries; no `ALTER` ever (Requirement 5.10). |
 | D3 | One transaction per command step | Autocommit | PostgreSQL DDL and inserts roll back; no partial schema or half-seeded tables. |
 | D4 | Per-table named random streams derived from the Seed_Value | One shared `Random` | Adding a table or reordering does not change other tables' data. |
@@ -1001,7 +1002,8 @@ on a machine without Docker), the zero-match search above, and a check of the fi
 | D7 | `fastq.key`, `bam.key`, `vcf.key` are free columns (nullable under the null policy) | Make them pool columns | Requirement 7.1 names five pools; an object key is per-row, not shared. Nulls here are harmless. |
 | D8 | Default password literal repeated in four places | Single shared source | Compose, Spring and Java cannot share one; the value is local-only and loopback-bound. |
 | D9 | DB tests gated by `-Dmockdb.it=true` through a Maven profile and a scratch database | Assumption on reachability; Testcontainers | Reported as skipped by default; never runs `reset` against the developer's working database. |
-| D10 | Fail-fast startup through `spring.sql.init` and a schema-agnostic `select 1` script | Script naming a table; custom Java check bean | The script names no schema or table (Requirement 12.12); missing relations fail at request time (11.8). Framework configuration, no Java in runtime modules (ADR 0007). Java bean kept as fallback. |
+| D10 | Fail-fast startup through `spring.sql.init` and a schema-agnostic `select 1` script | Script naming a table; custom Java check bean | The script names no schema or table (Requirement 12.12); missing relations fail at request time (11.8). Framework configuration, no Java in runtime modules (ADR 0007). Confirmed in task 1.4; the `@Profile` bean fallback is not used. |
+| D13 | Compose volume is declared as `orcanexus-mockdb-data`; the effective name is `orcanexus-mockdb_orcanexus-mockdb-data` because Compose prefixes the project name | Set an explicit volume `name:` | Confirmed in task 1.1. Docs and checks must use the prefixed name with `docker volume ls` and `docker inspect`. |
 | D11 | Compose file lives in `orcanexus-mockdb/` | Repository root | The module owns its infrastructure; the root stays clean. |
 | D12 | Exit code 2 for usage errors, 1 for runtime failures | Single non-zero | Lets scripts tell bad input from environment problems; both satisfy the requirements. |
 
@@ -1022,13 +1024,27 @@ Confirmed:
 - **Column types.** `NUMERIC(12,4)` (`workflow.workflow_duration`) and `NUMERIC(18,2)`
   (`workflow_cost_report`) are both read from the model.
 
-Remaining assumptions, all verified in task 1:
+Verified in task 1 (no fallback used in any case):
 
-- **PostgreSQL image.** `postgres:18.6` is a user decision, not derived from the Aurora version.
-  Task 1.1 verifies that the tag exists on Docker Hub and that the volume mounted at
-  `/var/lib/postgresql` retains data across restarts without creating an anonymous volume.
-- **DDL execution.** The jOOQ-generated DDL is accepted by PostgreSQL (fallback ladder in the DDL section).
+- **PostgreSQL image.** `postgres:18.6` is a user decision, not derived from the Aurora version;
+  the Aurora major version is not part of the decision. The tag exists and pulls (task 1.2). The
+  volume mounted at `/var/lib/postgresql` retains data across stop/start and down/up without `-v`,
+  with one named volume and no anonymous volume (task 1.1). The effective volume name carries the
+  Compose project prefix (D13).
+- **DDL execution.** The jOOQ-generated DDL is accepted by PostgreSQL 18.6, twice in one
+  transaction (task 1.1).
 - **Fail-fast startup.** `spring.sql.init` with `select 1` fails startup when the database is
-  unreachable on Boot 4.1.1 (fallback: `@Profile("mockdb")` check bean).
-- **Boot-jar launch.** The repackaged `orcanexus-mockdb` jar starts with `java -jar` (fallback: shade plugin).
-- **Datafaker resource loading.** Datafaker loads its resources from inside the Boot nested jar (same fallback).
+  unreachable on Boot 4.1.1 (task 1.4). The PostgreSQL driver reaches `orcanexus-application` at
+  runtime through `orcanexus-aurora` (runtime scope); the AWS wrapper does not bundle it.
+- **Boot-jar launch and Datafaker.** The repackaged jar starts with `java -jar`, loads Datafaker
+  2.7.0 resources, registers the driver with `Class.forName("org.postgresql.Driver")`, and a seeded
+  Faker is deterministic across runs (task 1.3).
+- **`up --wait`.** A timeout leaves the container running; a busy port gives a port-binding error
+  (task 1.1).
+
+Still unverified:
+
+- **Repository `.env` not loaded by Compose.** All Compose variables resolved to defaults, which is
+  consistent with the claim, but it cannot be proven without reading `.env`, which was not read.
+- **Request-time behaviour for a missing or empty relation** (V8) and the other runtime steps V1
+  to V10 run later, against the finished application.
