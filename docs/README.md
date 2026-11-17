@@ -28,7 +28,9 @@ The spec folder then stays as history and is no longer maintained.
 ## Index
 
 - [api/conventions.md](api/conventions.md): pagination, sorting, errors
-- [dev/setup.md](dev/setup.md): toolchain, AWS session, tunnel, lint, Makefile
+- [dev/setup.md](dev/setup.md): toolchain, build, lint, Makefile
+- [dev/remote-tunnel.md](dev/remote-tunnel.md): remote dev database (AWS session, SSM tunnel, credentials, `tunnel` profile)
+- [dev/offline-mockdb.md](dev/offline-mockdb.md): offline mock database (Compose, seed tool, `mockdb` profile)
 - [dev/adding-a-resource.md](dev/adding-a-resource.md): the LIMS-slice recipe
 - [dev/ai-engineering.md](dev/ai-engineering.md): Kiro notes
 - [architecture/overview.md](architecture/overview.md): modules, flow, concepts

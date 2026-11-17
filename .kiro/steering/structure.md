@@ -21,5 +21,12 @@ request flow and package layout: `docs/architecture/overview.md`. Rationale:
   implement them.
 - Base package `dev.ccgcm.platform.orcanexus`; `...jooq` is generated, do not hand-edit.
 
+## Dev-only module `orcanexus-mockdb`
+- Leaf module, outside the hexagon: depends only on `orcanexus-jooq`, the Postgres driver and
+  Datafaker. Nothing depends on it and it is not in the application jar.
+- **Never** make `domain`, `rest`, `aurora` or `application` depend on it.
+- **Hard rule:** it never connects to a non-localhost host.
+- Recipe: `docs/dev/offline-mockdb.md`. Decision: `docs/adr/0010-local-mock-database.md`.
+
 ## New resource
 Use the LIMS slice as the template: `docs/dev/adding-a-resource.md`.

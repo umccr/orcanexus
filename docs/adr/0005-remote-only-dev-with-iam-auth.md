@@ -1,6 +1,6 @@
 # 5. Remote-only dev with IAM database auth
 
-- Status: Accepted
+- Status: Superseded by [0010](0010-local-mock-database.md)
 - Date: 2026-11-10 (recorded retroactively)
 
 > The setup is stated in the former `README_DEV.md` "Concepts" section. The reasoning is

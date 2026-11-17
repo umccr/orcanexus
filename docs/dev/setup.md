@@ -39,47 +39,14 @@ Apache Maven 3.10.0 (c43a36b8d67be7e0805a411bc0898af1a51f5472)
 Maven home: ~/.sdkman/candidates/maven/current
 ```
 
-## AWS session
+## Database access
 
-We develop against the remote OrcaNexus dev environment, so you need an authenticated AWS
-session. Use your usual AWS CLI setup and manage profiles however you like. Any profile or
-command shown in the docs is only an example; it signals that you must be authenticated at
-that point.
+Pick one way to give the application a database:
 
-```
-export AWS_PROFILE=unimelb-warehouse-prod-poweruser
-aws sso login
-```
-
-The project uses the [AWS SDK for Java](https://aws.amazon.com/sdk-for-java/), which loads
-credentials through the default
-[credential chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html).
-
-## Tunnel and credentials
-
-Source the dx script. It exports shell functions (`nexus_*` shortcuts) for the remote dev
-environment.
-
-```
-source dx.sh
-```
-
-Make the key and tunnel:
-
-```
-nexus_rule
-nexus_key
-nexus_tunnel
-nexus_status
-nexus_nc
-```
-
-Make the credentials:
-
-```
-nexus_env
-nexus_cred
-```
+- Remote dev database over the SSM tunnel (profile `tunnel`, the default): [remote-tunnel.md](remote-tunnel.md).
+  Needs an AWS session.
+- Local mock database in Docker (profile `mockdb`): [offline-mockdb.md](offline-mockdb.md).
+  Needs no AWS access.
 
 ## Build and run
 
@@ -172,5 +139,5 @@ Infra:
 
 ## Further reading
 
-- [Architecture overview](../architecture/overview.md) for concepts (database-first, remote-dev)
+- [Architecture overview](../architecture/overview.md) for concepts (database-first, remote dev database, local mock database)
 - [Adding a resource](adding-a-resource.md)

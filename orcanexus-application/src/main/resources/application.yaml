@@ -3,7 +3,7 @@ spring:
     name: orcanexus
 
   profiles:
-    default: local
+    default: tunnel
 
   jooq:
     sql-dialect: POSTGRES

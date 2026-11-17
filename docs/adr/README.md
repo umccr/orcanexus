@@ -39,16 +39,17 @@ not an ADR.
 
 Status values: Accepted, Superseded by NNNN.
 
-| #    | Decision                                                                                                | Status   |
-|------|---------------------------------------------------------------------------------------------------------|----------|
-| 0001 | [Record architecture decisions](0001-record-architecture-decisions.md)                                  | Accepted |
-| 0002 | [Hexagonal architecture across Maven modules](0002-hexagonal-architecture.md)                           | Accepted |
-| 0003 | [Spring Boot and Java 21](0003-spring-boot-and-java-21.md)                                              | Accepted |
-| 0004 | [Database-first with jOOQ, no ORM](0004-database-first-jooq-no-orm.md)                                  | Accepted |
-| 0005 | [Remote-only dev with IAM database auth](0005-remote-only-dev-with-iam-auth.md)                         | Accepted |
-| 0006 | [Offset pagination via Spring Data web support](0006-offset-pagination-via-spring-data-web.md)          | Accepted |
-| 0007 | [Prefer framework configuration over custom properties](0007-prefer-framework-configuration.md)         | Accepted |
-| 0008 | [RFC 9457 problem details for errors](0008-rfc-9457-problem-details-for-errors.md)                      | Accepted |
-| 0009 | [Sort fields are physical column names, whitelisted](0009-sort-fields-are-whitelisted-column-names.md)  | Accepted |
+| #    | Decision                                                                                                | Status             |
+|------|---------------------------------------------------------------------------------------------------------|--------------------|
+| 0001 | [Record architecture decisions](0001-record-architecture-decisions.md)                                  | Accepted           |
+| 0002 | [Hexagonal architecture across Maven modules](0002-hexagonal-architecture.md)                           | Accepted           |
+| 0003 | [Spring Boot and Java 21](0003-spring-boot-and-java-21.md)                                              | Accepted           |
+| 0004 | [Database-first with jOOQ, no ORM](0004-database-first-jooq-no-orm.md)                                  | Accepted           |
+| 0005 | [Remote-only dev with IAM database auth](0005-remote-only-dev-with-iam-auth.md)                         | Superseded by 0010 |
+| 0006 | [Offset pagination via Spring Data web support](0006-offset-pagination-via-spring-data-web.md)          | Accepted           |
+| 0007 | [Prefer framework configuration over custom properties](0007-prefer-framework-configuration.md)         | Accepted           |
+| 0008 | [RFC 9457 problem details for errors](0008-rfc-9457-problem-details-for-errors.md)                      | Accepted           |
+| 0009 | [Sort fields are physical column names, whitelisted](0009-sort-fields-are-whitelisted-column-names.md)  | Accepted           |
+| 0010 | [Local mock database](0010-local-mock-database.md)                                                      | Accepted           |
 
 ADRs 0002 to 0005 were recorded retroactively; their reasoning is inferred and marked as such.
