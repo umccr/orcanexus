@@ -1,8 +1,5 @@
 .local/
 
-# Kiro task-tracking state
-.kiro/specs/**/tasks.meta.json
-
 .env
 .env.*
 !.env.example

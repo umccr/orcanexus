@@ -1,0 +1,34 @@
+schema: spec-driven
+
+# Injected into every artifact's instructions. Keep it to constraints an agent cannot infer;
+# agent rules live in AGENTS.md and how we use OpenSpec is in docs/dev/spec-driven.md.
+context: |
+  OrcaNexus is the UMCCR Warehouse Data API: a read-oriented Spring Boot (Java 21) REST service
+  over Aurora PostgreSQL, using jOOQ, in hexagonal Maven modules. Read AGENTS.md before writing
+  artifacts.
+  Never include real patient, sample, subject or library identifiers or query results in
+  artifacts; use synthetic examples.
+  Long-lived context lives outside OpenSpec: docs/architecture/ (how it is built), docs/api/
+  (behaviour shared by all endpoints) and docs/decisions/ (why). Link to them instead of repeating them.
+
+rules:
+  proposal:
+    - For a retrospective baseline or a migrated spec, say so in Why and state that no code changes.
+    - If the change alters the API contract (paths, parameters, response shape, error format) or module boundaries, say that a maintainer should review it as a draft PR before apply.
+  specs:
+    - Describe observable behaviour (endpoints, responses, configuration, CLI outcomes), not class internals.
+    - Use synthetic values in scenarios (e.g. `L2400001`), never real IDs.
+  design:
+    - State the affected Maven modules and confirm the module dependency rules in AGENTS.md still hold.
+    - Call out any breaking change to the API contract; OpenAPI is the source of truth for endpoints.
+    - Prefer Spring Boot configuration over custom `orcanexus.*` properties (docs/decisions/0007).
+  tasks:
+    - End each task with `mvn -DskipTests compile` passing; format only with `mvn spotless:apply`.
+    - Include `mvn verify` as a final task, and runtime verification against the `mockdb` profile for DB-facing changes.
+    - Include updating docs/ or adding an ADR when the change alters structure, shared API behaviour or makes a real decision.
+
+operations:
+  archive:
+    guidance:
+      - Promote consumer-facing behaviour to docs/api/, structural outcomes to docs/architecture/ and real decisions to docs/decisions/ in the same branch.
+      - After archiving, fix relative links in the archived proposal.md and design.md; the folder moves one level deeper.

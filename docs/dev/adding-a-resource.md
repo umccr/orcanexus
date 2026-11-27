@@ -2,7 +2,7 @@
 
 Follow the LIMS slice. Pagination parsing, validation and the response envelope are shared;
 only the resource-specific parts are new. Module rules are in the
-[architecture overview](../architecture/overview.md).
+[architecture overview](../architecture/README.md).
 
 ## Steps
 
@@ -23,8 +23,8 @@ only the resource-specific parts are new. Module rules are in the
 ## Notes
 
 - Limits and defaults come from `spring.data.web.pageable.*`; do not add custom settings
-  ([ADR 0007](../adr/0007-prefer-framework-configuration.md)).
+  ([ADR 0007](../decisions/0007-prefer-framework-configuration.md)).
 - Offset pagination was chosen on purpose
-  ([ADR 0006](../adr/0006-offset-pagination-via-spring-data-web.md)). Revisit keyset (cursor)
+  ([ADR 0006](../decisions/0006-offset-pagination-via-spring-data-web.md)). Revisit keyset (cursor)
   pagination for a resource only if its row counts make deep pages or the count query slow.
-- Shared API behaviour is in [api/conventions.md](../api/conventions.md).
+- Shared API behaviour is in [api/README.md](../api/README.md).
