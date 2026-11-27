@@ -4,14 +4,14 @@
 A way to run OrcaNexus without AWS: a local PostgreSQL in Docker Compose, filled
 with deterministic synthetic data, selected through the Spring profile `mockdb`. The remote dev
 database over the SSM tunnel stays available ([remote-tunnel](remote-tunnel.md)). Decision and
-trade-offs: [ADR 0010](../adr/0010-local-mock-database.md).
+trade-offs: [ADR 0010](../decisions/0010-local-mock-database.md).
 
 All data is fictional. Never use it as a stand-in for real warehouse content.
 
 ## Prerequisites
 
 - Docker with Compose (`docker compose`), running.
-- Java 21 and Maven, as in [setup](setup.md#tools).
+- Java 21 and Maven, as in [setup](README.md#tools).
 - Nothing from AWS: no session, no tunnel, no credentials.
 
 ## Start the Compose_Stack
@@ -86,7 +86,7 @@ java -jar orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar
 - Check it with Swagger UI at `http://localhost:<SERVER_PORT>/swagger-ui/index.html`, or the
   OpenAPI document at `/v3/api-docs`. Endpoints and parameters are listed there, not here. A
   `200` from the system info endpoint only proves startup; call a data endpoint to prove the
-  schema ([jooq.md](../../.kiro/steering/jooq.md) has the same advice).
+  schema ([jooq.md](jooq.md) has the same advice).
 
 ## Environment variables
 
@@ -154,7 +154,7 @@ The same works as a one-off command: `duckdb -c "INSTALL postgres; LOAD postgres
 - The default scale of 100 gives several pages at the default page size. Scale 11 or more is
   enough for two pages.
 - Sort ties and null values exist on purpose, so ascending and descending sorts give different
-  first rows and page boundaries are visible. Sort field rules: [API conventions](../api/conventions.md).
+  first rows and page boundaries are visible. Sort field rules: [API conventions](../api/README.md).
 - Same seed, same data: use it to reproduce a bug report. Change `--seed` to get different
   values with the same row counts.
 

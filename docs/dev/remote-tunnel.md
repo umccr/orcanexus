@@ -3,12 +3,12 @@
 Run OrcaNexus against the remote dev Aurora PostgreSQL. You reach it through an SSM tunnel to a
 small EC2 instance in a private subnet, and authenticate with IAM database auth (15-minute
 tokens, read-only user, no static passwords). This is the Spring profile `tunnel`, the default.
-Background: [ADR 0005](../adr/0005-remote-only-dev-with-iam-auth.md). To work without AWS, use
+Background: [ADR 0005](../decisions/0005-remote-only-dev-with-iam-auth.md). To work without AWS, use
 the [offline mock database](offline-mockdb.md) instead.
 
 ## Prerequisites
 
-- The toolchain from [setup](setup.md#tools), including `aws-cli`.
+- The toolchain from [setup](README.md#tools), including `aws-cli`.
 - Access to the OrcaNexus dev AWS account.
 
 ## AWS session
@@ -71,7 +71,7 @@ java -jar orcanexus-application/target/orcanexus-application-1.0-SNAPSHOT.jar
 ```
 
 `SERVER_PORT` overrides the HTTP port. Swagger UI and the OpenAPI document list the endpoints
-(see [setup](setup.md#build-and-run)). A `200` from the system info endpoint only proves
+(see [setup](README.md#build-and-run)). A `200` from the system info endpoint only proves
 startup; call a data endpoint to prove the database connection.
 
 ## Environment variables

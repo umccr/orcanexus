@@ -25,6 +25,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: readme-line-cap
+        name: keep root README.md at 60 lines or fewer
+        entry: bash -c 'n=$(($(wc -l < README.md))); [ "$n" -le 60 ] || { echo "README.md has $n lines (max 60). It is the landing page; put new content under docs/ (see docs/README.md)."; exit 1; }'
+        language: system
+        pass_filenames: false
+        files: ^README\.md$
+
       - id: spotless-check
         name: check Java formatting
         entry: mvn -B spotless:check
